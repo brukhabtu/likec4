@@ -14,10 +14,24 @@ const idSymbol = Symbol.for('idattr')
 export class FederationStore {
   #manifests = new Map<string, FederationManifest>()
   #descCache = new Map<string, AstNodeDescriptionWithFqn[]>()
+  #fqnToProject = new Map<string, string>()
 
   setManifest(projectName: string, manifest: FederationManifest): void {
     this.#manifests.set(projectName, manifest)
     this.#descCache.delete(projectName)
+    // Rebuild reverse lookup for this project
+    for (const [fqn, project] of this.#fqnToProject) {
+      if (project === projectName) {
+        this.#fqnToProject.delete(fqn)
+      }
+    }
+    for (const fqn of Object.keys(manifest.elements)) {
+      this.#fqnToProject.set(fqn, projectName)
+    }
+  }
+
+  projectForFqn(fqn: string): string | undefined {
+    return this.#fqnToProject.get(fqn)
   }
 
   getManifest(projectName: string): FederationManifest | undefined {
@@ -35,6 +49,7 @@ export class FederationStore {
   clear(): void {
     this.#manifests.clear()
     this.#descCache.clear()
+    this.#fqnToProject.clear()
   }
 
   private getDescriptions(projectName: string): AstNodeDescriptionWithFqn[] {

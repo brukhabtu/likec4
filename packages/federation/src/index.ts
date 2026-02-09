@@ -18,6 +18,5 @@ export {
   parseSemVer,
   satisfies,
   type SemVer,
-  type SemVerRange,
   semVerToString,
 } from './version'

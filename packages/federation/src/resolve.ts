@@ -2,7 +2,7 @@ import type { FederationConfig } from '@likec4/config'
 import type { FederationManifest } from '@likec4/core/types'
 import { createFederatedRegistry } from './federated-registry'
 import { type RegistryReader, createLocalRegistry } from './registry'
-import { parseRange } from './version'
+import { parseRange, semVerToString } from './version'
 
 export interface ResolvedDependencies {
   [projectName: string]: FederationManifest
@@ -43,7 +43,7 @@ export async function resolveDependencies(
       if (!manifest) {
         const versions = await registry.listVersions(name)
         const available = versions.length > 0
-          ? `Available versions: ${versions.map(v => `${v.major}.${v.minor}.${v.patch}`).join(', ')}`
+          ? `Available versions: ${versions.map(v => semVerToString(v)).join(', ')}`
           : 'No versions found'
         throw new Error(
           `No matching version found for "${name}@${dep.version}" in ${dep.source}. ${available}`,

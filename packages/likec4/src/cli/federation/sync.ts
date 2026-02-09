@@ -1,5 +1,4 @@
 import { resolve } from 'node:path'
-import { exit } from 'node:process'
 import k from 'tinyrainbow'
 import { LikeC4 } from '../../LikeC4'
 import { createLikeC4Logger } from '../../logger'
@@ -17,7 +16,7 @@ export async function syncHandler(args: { path: string }) {
   const projectId = likec4.projectsManager.defaultProjectId
   if (!projectId) {
     logger.error('No project found. Ensure a likec4.config.json exists.')
-    exit(1)
+    throw new Error('No project found. Ensure a likec4.config.json exists.')
   }
 
   const project = likec4.projectsManager.getProject(projectId)
@@ -25,7 +24,7 @@ export async function syncHandler(args: { path: string }) {
   const deps = federation?.dependencies
   if (!deps || Object.keys(deps).length === 0) {
     logger.error('No federation dependencies configured for this project.')
-    exit(1)
+    throw new Error('No federation dependencies configured for this project.')
   }
 
   const { createFederatedRegistry } = await import('@likec4/federation')
@@ -51,7 +50,7 @@ export async function syncHandler(args: { path: string }) {
 
   if (depsBySource.size === 0) {
     logger.warn('No manifests resolved. Nothing to sync.')
-    exit(0)
+    return
   }
 
   // Sync consumer contract to each registry

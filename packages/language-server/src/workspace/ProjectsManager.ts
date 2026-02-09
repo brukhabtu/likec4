@@ -674,16 +674,17 @@ export class ProjectsManager {
     const deps = project.config.federation?.dependencies
     if (!deps) return
 
+    const { resolve } = await import('node:path')
+    const { createLocalRegistry, createFederatedRegistry, parseRange } = await import('@likec4/federation')
+
     const projectFolder = project.folderUri.fsPath
     for (const [name, dep] of Object.entries(deps)) {
       try {
         // Resolve source path relative to project folder
-        const { resolve } = await import('node:path')
         const registryDir = resolve(projectFolder, dep.source)
 
         if (dep.version) {
           // Semver-based resolution
-          const { createLocalRegistry, parseRange } = await import('@likec4/federation')
           const range = parseRange(dep.version)
           if (!range) {
             logger.warn(
@@ -704,7 +705,6 @@ export class ProjectsManager {
           }
         } else {
           // Federated registry resolution — always read latest manifest
-          const { createFederatedRegistry } = await import('@likec4/federation')
           const registry = createFederatedRegistry(registryDir)
           const manifest = await registry.readManifest(name)
           this.federationStore.setManifest(name, manifest)

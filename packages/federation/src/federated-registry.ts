@@ -29,6 +29,11 @@ export function createFederatedRegistry(registryDir: string): FederatedRegistryW
       const manifestPath = join(registryDir, projectName, 'manifest.json')
       const content = await readFile(manifestPath, 'utf-8')
       const manifest = JSON.parse(content) as FederationManifest
+      if (!manifest || typeof manifest !== 'object' || !('schema' in manifest) || !('name' in manifest) || !('elements' in manifest)) {
+        throw new Error(
+          `Invalid manifest in ${manifestPath}: missing required fields (schema, name, elements).`,
+        )
+      }
       if (manifest.schema !== 'likec4/federation/v1') {
         throw new Error(
           `Unsupported manifest schema "${manifest.schema}" in ${manifestPath}. Expected "likec4/federation/v1".`,
@@ -41,6 +46,11 @@ export function createFederatedRegistry(registryDir: string): FederatedRegistryW
       try {
         const content = await readFile(registryJsonPath, 'utf-8')
         const registry = JSON.parse(content) as FederationRegistry
+        if (!registry || typeof registry !== 'object' || !('schema' in registry)) {
+          throw new Error(
+            `Invalid registry JSON in ${registryJsonPath}: missing required "schema" field.`,
+          )
+        }
         if (registry.schema !== 'likec4/registry/v1') {
           throw new Error(
             `Unsupported registry schema "${registry.schema}". Expected "likec4/registry/v1".`,
@@ -55,6 +65,11 @@ export function createFederatedRegistry(registryDir: string): FederatedRegistryW
       }
     },
 
+    /**
+     * Publish a manifest and update the registry index.
+     * Not safe for concurrent writes — callers must ensure sequential access.
+     * This is acceptable for the current CLI use case where operations are sequential commands.
+     */
     async publishManifest(projectName: string, manifest: FederationManifest): Promise<void> {
       const manifestDir = join(registryDir, projectName)
       await mkdir(manifestDir, { recursive: true })
@@ -68,6 +83,10 @@ export function createFederatedRegistry(registryDir: string): FederatedRegistryW
       await writeFile(registryJsonPath, JSON.stringify(registry, null, 2) + '\n', 'utf-8')
     },
 
+    /**
+     * Update a consumer's import contract in the registry.
+     * Not safe for concurrent writes — callers must ensure sequential access.
+     */
     async syncConsumer(consumerName: string, imports: Record<string, string[]>): Promise<void> {
       const registry = await this.readRegistry()
       registry.consumers[consumerName] = { imports }

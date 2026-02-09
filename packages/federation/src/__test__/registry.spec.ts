@@ -47,9 +47,10 @@ describe('createLocalRegistry', () => {
       const registry = createLocalRegistry(registryDir)
       const versions = await registry.listVersions('test-project')
       expect(versions).toHaveLength(3)
-      expect(versions).toContainEqual(parseSemVer('1.0.0'))
-      expect(versions).toContainEqual(parseSemVer('1.1.0'))
-      expect(versions).toContainEqual(parseSemVer('2.0.0'))
+      const versionStrings = versions.map(v => v.format())
+      expect(versionStrings).toContain('1.0.0')
+      expect(versionStrings).toContain('1.1.0')
+      expect(versionStrings).toContain('2.0.0')
     })
 
     it('returns empty array for non-existent project', async () => {
@@ -76,6 +77,16 @@ describe('createLocalRegistry', () => {
       const registry = createLocalRegistry(registryDir)
       await expect(registry.readManifest('test-project', parseSemVer('3.0.0')!))
         .rejects.toThrow('Unsupported manifest schema')
+    })
+
+    it('throws for invalid manifest JSON', async () => {
+      await writeFile(
+        join(registryDir, 'test-project', '4.0.0.json'),
+        JSON.stringify({ foo: 'bar' }),
+      )
+      const registry = createLocalRegistry(registryDir)
+      await expect(registry.readManifest('test-project', parseSemVer('4.0.0')!))
+        .rejects.toThrow('Invalid manifest')
     })
   })
 

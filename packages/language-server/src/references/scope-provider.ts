@@ -92,11 +92,10 @@ export class LikeC4ScopeProvider extends DefaultScopeProvider {
         // Synthetic federated element (no $container) — find its project in federation store
         const fqn = ElementOps.readId(element) as Fqn | undefined
         if (fqn) {
-          for (const fedId of this.projects.federationStore.manifestProjectIds) {
-            if (this.projects.federationStore.byFqn(fedId as ProjectId, fqn).length > 0) {
-              yield* this.fqnIndex.uniqueDescedants(fedId as ProjectId, fqn)
-              return
-            }
+          const fedId = this.projects.federationStore.projectForFqn(fqn)
+          if (fedId) {
+            yield* this.fqnIndex.uniqueDescedants(fedId as ProjectId, fqn)
+            return
           }
         }
       }

@@ -1223,6 +1223,9 @@ importers:
       '@likec4/core':
         specifier: workspace:*
         version: link:../core
+      semver:
+        specifier: ^7.7.1
+        version: 7.7.3
     devDependencies:
       '@likec4/devops':
         specifier: workspace:*
@@ -1233,6 +1236,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 22.19.7
+      '@types/semver':
+        specifier: ^7.5.8
+        version: 7.7.1
       obuild:
         specifier: catalog:obuild
         version: 0.4.27(@typescript/native-preview@7.0.0-dev.20260206.1)(magicast@0.5.1)(picomatch@4.0.3)(rollup@4.57.1)(typescript@5.9.3)

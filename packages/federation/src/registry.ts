@@ -1,7 +1,8 @@
 import type { FederationManifest } from '@likec4/core/types'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { type SemVer, type SemVerRange, findBestMatch, parseSemVer, semVerToString } from './version'
+import type { Range, SemVer } from 'semver'
+import { findBestMatch, parseSemVer, semVerToString } from './version'
 
 export interface RegistryReader {
   /** List all available versions for a project */
@@ -9,7 +10,7 @@ export interface RegistryReader {
   /** Read a specific version manifest */
   readManifest(projectName: string, version: SemVer): Promise<FederationManifest>
   /** Find the best matching version for a semver range */
-  findMatch(projectName: string, range: SemVerRange): Promise<FederationManifest | null>
+  findMatch(projectName: string, range: Range): Promise<FederationManifest | null>
 }
 
 /**
@@ -47,6 +48,11 @@ export function createLocalRegistry(registryDir: string): RegistryReader {
       const filePath = join(registryDir, projectName, `${semVerToString(version)}.json`)
       const content = await readFile(filePath, 'utf-8')
       const manifest = JSON.parse(content) as FederationManifest
+      if (!manifest || typeof manifest !== 'object' || !('schema' in manifest) || !('name' in manifest) || !('elements' in manifest)) {
+        throw new Error(
+          `Invalid manifest in ${filePath}: missing required fields (schema, name, elements).`,
+        )
+      }
       if (manifest.schema !== 'likec4/federation/v1') {
         throw new Error(
           `Unsupported manifest schema "${manifest.schema}" in ${filePath}. Expected "likec4/federation/v1".`,
@@ -55,7 +61,7 @@ export function createLocalRegistry(registryDir: string): RegistryReader {
       return manifest
     },
 
-    async findMatch(projectName: string, range: SemVerRange): Promise<FederationManifest | null> {
+    async findMatch(projectName: string, range: Range): Promise<FederationManifest | null> {
       const versions = await this.listVersions(projectName)
       const best = findBestMatch(versions, range)
       if (!best) return null

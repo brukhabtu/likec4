@@ -36,6 +36,7 @@ import type { LikeC4Services } from '../module'
 import { ADisposable } from '../utils'
 import { readStrictFqn } from '../utils/elementRef'
 import { type LangiumDocuments, ProjectsManager } from '../workspace'
+import type { FederationStore } from './federation-store'
 
 const isIndexableElement = isAnyOf(ast.isElement, ast.isExtendElement)
 
@@ -72,6 +73,19 @@ export class FqnIndex<AstNd = ast.Element> extends ADisposable {
     return this.langiumDocuments
       .projectDocuments(projectId)
       .filter(d => d.state >= DocumentState.IndexedContent)
+  }
+
+  /**
+   * If projectId refers to a federated project, delegate to the FederationStore.
+   * Returns null if not federated (caller should fall through to document-based path).
+   */
+  private fromFederation(
+    projectId: ProjectId,
+    lookup: (store: FederationStore) => AstNodeDescriptionWithFqn[],
+  ): AstNodeDescriptionWithFqn[] | null {
+    const store = this.projects.federationStore
+    if (!store.hasManifest(projectId)) return null
+    return lookup(store)
   }
 
   public get(document: LikeC4LangiumDocument): DocumentFqnIndex {
@@ -122,11 +136,8 @@ export class FqnIndex<AstNd = ast.Element> extends ADisposable {
 
   public byFqn(projectId: ProjectId, fqn: Fqn): Stream<AstNodeDescriptionWithFqn> {
     return stream(this.workspaceCache.get(`${projectId}:fqn:${fqn}`, () => {
-      // Check federation store first — federated projects have no documents
-      if (this.projects.federationStore.hasManifest(projectId)) {
-        return this.projects.federationStore.byFqn(projectId, fqn)
-      }
-      return this
+      return this.fromFederation(projectId, s => s.byFqn(projectId, fqn))
+        ?? this
         .documents(projectId)
         .flatMap(doc => this.get(doc).byFqn(fqn))
         .toArray()
@@ -136,10 +147,8 @@ export class FqnIndex<AstNd = ast.Element> extends ADisposable {
   public rootElements(projectId: ProjectId): Stream<AstNodeDescriptionWithFqn> {
     return stream(
       this.workspaceCache.get(`${projectId}:rootElements`, () => {
-        // Check federation store first — federated projects have no documents
-        if (this.projects.federationStore.hasManifest(projectId)) {
-          return this.projects.federationStore.rootElements(projectId)
-        }
+        const federated = this.fromFederation(projectId, s => s.rootElements(projectId))
+        if (federated) return federated
         const allroots = new MultiMap<string, AstNodeDescriptionWithFqn>()
         for (const doc of this.documents(projectId)) {
           for (const desc of this.get(doc).rootElements()) {
@@ -154,10 +163,8 @@ export class FqnIndex<AstNd = ast.Element> extends ADisposable {
   public directChildrenOf(projectId: ProjectId, parent: Fqn): Stream<AstNodeDescriptionWithFqn> {
     return stream(
       this.workspaceCache.get(`${projectId}:directChildrenOf:${parent}`, () => {
-        // Check federation store first — federated projects have no documents
-        if (this.projects.federationStore.hasManifest(projectId)) {
-          return this.projects.federationStore.directChildrenOf(projectId, parent)
-        }
+        const federated = this.fromFederation(projectId, s => s.directChildrenOf(projectId, parent))
+        if (federated) return federated
         const allchildren = new MultiMap<string, AstNodeDescriptionWithFqn>()
         for (const doc of this.documents(projectId)) {
           for (const desc of this.get(doc).children(parent)) {
@@ -175,10 +182,8 @@ export class FqnIndex<AstNd = ast.Element> extends ADisposable {
   public uniqueDescedants(projectId: ProjectId, parent: Fqn): Stream<AstNodeDescriptionWithFqn> {
     return stream(
       this.workspaceCache.get(`${projectId}:uniqueDescedants:${parent}`, () => {
-        // Check federation store first — federated projects have no documents
-        if (this.projects.federationStore.hasManifest(projectId)) {
-          return this.projects.federationStore.uniqueDescendants(projectId, parent)
-        }
+        const federated = this.fromFederation(projectId, s => s.uniqueDescendants(projectId, parent))
+        if (federated) return federated
         const children = new MultiMap<string, AstNodeDescriptionWithFqn>(),
           descendants = new MultiMap<string, AstNodeDescriptionWithFqn>()
 

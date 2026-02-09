@@ -3,7 +3,7 @@ import type { FederationManifest } from '@likec4/core/types'
 import { describe, expect, it } from 'vitest'
 import type { RegistryReader } from '../registry'
 import { resolveDependencies } from '../resolve'
-import { parseSemVer } from '../version'
+import { findBestMatch, parseSemVer, semVerToString } from '../version'
 
 function createMockManifest(name: string, version: string): FederationManifest {
   return {
@@ -25,15 +25,15 @@ function createMockRegistry(manifests: Record<string, FederationManifest[]>): (s
     },
     async readManifest(projectName: string, version) {
       const list = manifests[projectName] ?? []
-      const found = list.find(m => m.version === `${version.major}.${version.minor}.${version.patch}`)
+      const versionStr = semVerToString(version)
+      const found = list.find(m => m.version === versionStr)
       if (!found) {
-        throw new Error(`Manifest not found: ${projectName}@${version.major}.${version.minor}.${version.patch}`)
+        throw new Error(`Manifest not found: ${projectName}@${versionStr}`)
       }
       return found
     },
     async findMatch(projectName: string, range) {
       const versions = await this.listVersions(projectName)
-      const { findBestMatch } = await import('../version')
       const best = findBestMatch(versions, range)
       if (!best) return null
       return this.readManifest(projectName, best)

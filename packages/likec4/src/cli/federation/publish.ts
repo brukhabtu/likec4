@@ -1,5 +1,4 @@
 import { resolve } from 'node:path'
-import { exit } from 'node:process'
 import k from 'tinyrainbow'
 import { LikeC4 } from '../../LikeC4'
 import { createLikeC4Logger } from '../../logger'
@@ -17,20 +16,20 @@ export async function publishHandler(args: { path: string }) {
   const projectId = likec4.projectsManager.defaultProjectId
   if (!projectId) {
     logger.error('No project found. Ensure a likec4.config.json exists.')
-    exit(1)
+    throw new Error('No project found. Ensure a likec4.config.json exists.')
   }
 
   const project = likec4.projectsManager.getProject(projectId)
   const federation = project.config.federation
   if (!federation?.exports || federation.exports.length === 0) {
     logger.error('No federation exports configured in the project config.')
-    exit(1)
+    throw new Error('No federation exports configured in the project config.')
   }
 
   const publishConfig = federation.publish
   if (!publishConfig) {
     logger.error('No federation publish config found. Add "federation.publish" to your likec4.config.json.')
-    exit(1)
+    throw new Error('No federation publish config found.')
   }
 
   const model = likec4.syncComputedModel(projectId)
@@ -56,7 +55,7 @@ export async function publishHandler(args: { path: string }) {
           logger.error(`    - ${fqn}`)
         }
       }
-      exit(1)
+      throw new Error('Composition check failed: breaking changes detected.')
     }
     logger.info(k.green('Composition check passed.'))
 
