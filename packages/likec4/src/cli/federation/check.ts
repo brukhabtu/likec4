@@ -3,7 +3,7 @@ import k from 'tinyrainbow'
 import { LikeC4 } from '../../LikeC4'
 import { createLikeC4Logger } from '../../logger'
 
-export async function checkHandler(args: { path: string }) {
+export async function checkHandler(args: { path: string; version?: string }) {
   const logger = createLikeC4Logger('c4:federation')
   logger.info(k.cyan('Running federation composition check (dry-run)...'))
 
@@ -39,7 +39,7 @@ export async function checkHandler(args: { path: string }) {
   const model = likec4.syncComputedModel(projectId)
   const { buildManifest, createFederatedRegistry, checkComposition } = await import('@likec4/federation')
 
-  const manifest = buildManifest(model, federation, {})
+  const manifest = buildManifest(model, federation, { version: args.version })
 
   const registry = createFederatedRegistry(registryDir)
   const registryData = await registry.readRegistry()

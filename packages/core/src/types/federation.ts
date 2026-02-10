@@ -28,6 +28,8 @@ export type FederationRegistrySchema = 'likec4/registry/v1'
 
 export interface RegistryProviderEntry {
   lastPublished: string
+  latestVersion?: string | undefined
+  versions?: string[] | undefined
 }
 
 export interface RegistryConsumerEntry {

@@ -10,8 +10,8 @@ export interface FederatedRegistryReader {
 }
 
 export interface FederatedRegistryWriter extends FederatedRegistryReader {
-  /** Publish a manifest and update the registry index */
-  publishManifest(projectName: string, manifest: FederationManifest): Promise<void>
+  /** Publish a manifest and update the registry index. If version is provided, writes a versioned snapshot. */
+  publishManifest(projectName: string, manifest: FederationManifest, version?: string): Promise<void>
   /** Update a consumer's import contract in the registry */
   syncConsumer(consumerName: string, imports: Record<string, string[]>): Promise<void>
 }
@@ -29,7 +29,10 @@ export function createFederatedRegistry(registryDir: string): FederatedRegistryW
       const manifestPath = join(registryDir, projectName, 'manifest.json')
       const content = await readFile(manifestPath, 'utf-8')
       const manifest = JSON.parse(content) as FederationManifest
-      if (!manifest || typeof manifest !== 'object' || !('schema' in manifest) || !('name' in manifest) || !('elements' in manifest)) {
+      if (
+        !manifest || typeof manifest !== 'object' || !('schema' in manifest) || !('name' in manifest) ||
+        !('elements' in manifest)
+      ) {
         throw new Error(
           `Invalid manifest in ${manifestPath}: missing required fields (schema, name, elements).`,
         )
@@ -67,19 +70,45 @@ export function createFederatedRegistry(registryDir: string): FederatedRegistryW
 
     /**
      * Publish a manifest and update the registry index.
+     * If version is provided, writes a versioned snapshot alongside the latest pointer.
      * Not safe for concurrent writes — callers must ensure sequential access.
      * This is acceptable for the current CLI use case where operations are sequential commands.
      */
-    async publishManifest(projectName: string, manifest: FederationManifest): Promise<void> {
+    async publishManifest(projectName: string, manifest: FederationManifest, version?: string): Promise<void> {
       const manifestDir = join(registryDir, projectName)
       await mkdir(manifestDir, { recursive: true })
+
+      const content = JSON.stringify(manifest, null, 2) + '\n'
+
+      // Always write the latest manifest
       const manifestPath = join(manifestDir, 'manifest.json')
-      await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf-8')
+      await writeFile(manifestPath, content, 'utf-8')
+
+      // If versioned, also write a versioned snapshot
+      if (version) {
+        const versionedPath = join(manifestDir, `${version}.json`)
+        await writeFile(versionedPath, content, 'utf-8')
+      }
 
       const registry = await this.readRegistry()
-      registry.providers[projectName] = {
+      const existing = registry.providers[projectName]
+      const entry: typeof registry.providers[string] = {
         lastPublished: new Date().toISOString(),
       }
+      if (version) {
+        entry.latestVersion = version
+        const existingVersions = existing?.versions ?? []
+        entry.versions = existingVersions.includes(version) ? existingVersions : [...existingVersions, version]
+      } else if (existing) {
+        // Preserve version fields from previous versioned publishes
+        if (existing.latestVersion) {
+          entry.latestVersion = existing.latestVersion
+        }
+        if (existing.versions) {
+          entry.versions = existing.versions
+        }
+      }
+      registry.providers[projectName] = entry
       await writeFile(registryJsonPath, JSON.stringify(registry, null, 2) + '\n', 'utf-8')
     },
 

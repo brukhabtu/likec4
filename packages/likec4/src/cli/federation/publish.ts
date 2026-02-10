@@ -3,7 +3,7 @@ import k from 'tinyrainbow'
 import { LikeC4 } from '../../LikeC4'
 import { createLikeC4Logger } from '../../logger'
 
-export async function publishHandler(args: { path: string }) {
+export async function publishHandler(args: { path: string; version?: string }) {
   const logger = createLikeC4Logger('c4:federation')
   logger.info(k.cyan('Publishing federation manifest...'))
 
@@ -35,7 +35,7 @@ export async function publishHandler(args: { path: string }) {
   const model = likec4.syncComputedModel(projectId)
   const { buildManifest, createFederatedRegistry, checkComposition } = await import('@likec4/federation')
 
-  const manifest = buildManifest(model, federation, {})
+  const manifest = buildManifest(model, federation, { version: args.version })
 
   // If registryDir is configured, run composition check and publish to registry
   const registryDir = publishConfig.registryDir
@@ -59,8 +59,11 @@ export async function publishHandler(args: { path: string }) {
     }
     logger.info(k.green('Composition check passed.'))
 
-    await registry.publishManifest(manifest.name, manifest)
-    logger.info(k.green(`Published manifest to ${registryDir}/${manifest.name}/manifest.json`))
+    await registry.publishManifest(manifest.name, manifest, args.version)
+    const dest = args.version
+      ? `${registryDir}/${manifest.name}/${args.version}.json`
+      : `${registryDir}/${manifest.name}/manifest.json`
+    logger.info(k.green(`Published manifest to ${dest}`))
   } else {
     // Fallback: write directly to outDir
     const outDir = resolve(project.folderUri.fsPath, publishConfig.outDir)
